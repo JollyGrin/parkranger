@@ -107,16 +107,16 @@ func KillSession(name string) error {
 }
 
 // EnsureSession creates the repo-level tmux session with a "dashboard" window
-// if it doesn't already exist. No-op if the session is already running.
-func EnsureSession(repo, repoRootDir string) error {
+// if it doesn't already exist. Returns true if a new session was created.
+func EnsureSession(repo, repoRootDir string) (bool, error) {
 	name := SessionName(repo)
 	if SessionExists(name) {
-		return nil
+		return false, nil
 	}
 	if _, err := run("new-session", "-d", "-s", name, "-n", "dashboard", "-c", repoRootDir); err != nil {
-		return err
+		return false, err
 	}
-	return nil
+	return true, nil
 }
 
 // WindowExists returns true if the named window exists in the given session.

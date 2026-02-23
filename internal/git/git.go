@@ -168,3 +168,29 @@ func DeleteBranch(root, branch string) error {
 	_, err := run(root, "branch", "-d", branch)
 	return err
 }
+
+// ListRemoteBranches returns branch names from origin, sorted by most recent
+// commit first. Each entry is the short name (e.g. "main", "develop").
+func ListRemoteBranches(root string) ([]string, error) {
+	out, err := run(root, "branch", "-r", "--sort=-committerdate", "--format=%(refname:short)")
+	if err != nil {
+		return nil, err
+	}
+	var branches []string
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Skip HEAD pointer (origin/HEAD -> origin/main)
+		if strings.Contains(line, "->") {
+			continue
+		}
+		// Strip "origin/" prefix
+		if strings.HasPrefix(line, "origin/") {
+			line = strings.TrimPrefix(line, "origin/")
+		}
+		branches = append(branches, line)
+	}
+	return branches, nil
+}
