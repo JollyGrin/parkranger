@@ -51,21 +51,32 @@ These tools directly address the problem of running and monitoring multiple AI c
   - Multi-agent support (widest agent compatibility of any tool)
 - **Relevance to Parkranger:** The status hooks concept is excellent -- allowing arbitrary automation when agent state changes. The session data copying across worktrees is also a feature worth considering. Written in TypeScript, so not directly reusable, but the architecture and feature design are worth studying.
 
-### dmux
+### dmux ★ UI INSPIRATION
 
-- **GitHub:** [formkit/dmux](https://github.com/formkit/dmux) / [standardagents/dmux](https://github.com/standardagents/dmux)
-- **Stars:** ~500+
-- **Language:** TypeScript
+- **GitHub:** [standardagents/dmux](https://github.com/standardagents/dmux)
+- **Stars:** ~729
+- **Language:** TypeScript (React TUI via [Ink](https://github.com/vadimdemedes/ink))
 - **Actively maintained:** Yes
-- **Description:** Dev agent multiplexer for git worktrees and Claude Code (or other agents). Creates a tmux pane for each task with its own worktree.
+- **Description:** Dev agent multiplexer for git worktrees and Claude Code (or other agents). Creates a tmux pane for each task with its own worktree. Best-in-class sidebar UI for agent session management.
 - **Key Features:**
   - Press `n` to create a new pane, type a prompt, pick an agent
-  - AI-powered automatic branch naming and commit message generation
+  - Left sidebar with pane cards: status icon + task slug + agent type (`[cc]`, `[oc]`)
+  - Status icons: `*` working (blue), `~` analyzing (yellow), `!` waiting (red), `o` idle (dim)
+  - `j`/`k` nav, `Enter` to focus tmux pane, `n` new, `x` close, `m` merge
+  - Auto-calculated grid layout for tmux panes (min 60, max 120 char width)
   - A/B launches -- run two agents on the same prompt side-by-side
   - Smart merging with auto-commit and cleanup
-  - Multi-project support
   - Lifecycle hooks (worktree create, pre-merge, post-merge)
-- **Relevance to Parkranger:** The A/B agent comparison feature is unique and interesting. The lifecycle hooks model is well-designed. The prompt-driven workflow (type a prompt and agent is launched) is a UX pattern worth considering.
+  - Two-tier status detection: deterministic pattern matching + LLM fallback via OpenRouter
+  - Autopilot mode: auto-accepts low-risk prompts based on LLM risk assessment
+- **Limitations (gaps parkranger fills):**
+  - Only manages worktrees it creates (`<repo>/.dmux/worktrees/`) -- no discovery of pre-existing worktrees
+  - No discovery of existing Claude Code sessions started outside dmux
+  - Requires OpenRouter API key for idle vs waiting detection
+  - Worktrees placed inside the repo (file watcher/IDE issues -- see deep-dive.md §2b)
+  - No session persistence across restarts
+  - No Claude Code session history browsing or resume
+- **Relevance to Parkranger:** Best UI reference. The sidebar card layout, status iconography, and keyboard shortcuts are the UX target. The two-tier status detection is clever but parkranger should achieve idle/waiting/busy purely from pane output patterns (no external LLM dependency). See `docs/deep-dive.md` §4 for full analysis.
 
 ### amux
 
@@ -508,19 +519,19 @@ Based on gaps observed across all projects:
 
 5. **From smug:** YAML-driven session definition is well-understood. Follow the convention of `~/.config/parkranger/` for global config and `.parkranger.yaml` for per-project config.
 
-6. **From dmux:** Lifecycle hooks (create, pre-merge, post-merge) add flexibility without complexity.
+6. **From dmux:** UI is the reference target -- sidebar card layout with status icons, `j`/`k` navigation, auto-grid tmux layout. Deterministic status detection should NOT require an external LLM. Lifecycle hooks add flexibility without complexity.
 
 ### Reference Repositories to Study
 
 | Priority | Repository | Why |
 |----------|-----------|-----|
-| 1 | [smtg-ai/claude-squad](https://github.com/smtg-ai/claude-squad) | Closest competitor, same tech stack (Go + Bubble Tea + tmux + worktrees) |
-| 2 | [DarthSim/overmind](https://github.com/DarthSim/overmind) | Best Go reference for tmux process management patterns |
-| 3 | [chmouel/lazyworktree](https://github.com/chmouel/lazyworktree) | Best Go/BubbleTea reference for worktree TUI |
-| 4 | [raine/workmux](https://github.com/raine/workmux) | Best worktree+tmux workflow design (Rust, but great config/UX) |
-| 5 | [ivaaaan/smug](https://github.com/ivaaaan/smug) | Clean Go reference for YAML-driven tmux session management |
-| 6 | [kbwo/ccmanager](https://github.com/kbwo/ccmanager) | Status hooks and multi-agent patterns |
-| 7 | [formkit/dmux](https://github.com/formkit/dmux) | Lifecycle hooks and A/B agent comparison |
+| 1 | [standardagents/dmux](https://github.com/standardagents/dmux) | **UI inspiration target.** Sidebar card layout, status icons, keyboard shortcuts, grid layout calculator |
+| 2 | [smtg-ai/claude-squad](https://github.com/smtg-ai/claude-squad) | Closest competitor, same tech stack (Go + Bubble Tea + tmux + worktrees) |
+| 3 | [DarthSim/overmind](https://github.com/DarthSim/overmind) | Best Go reference for tmux process management patterns |
+| 4 | [chmouel/lazyworktree](https://github.com/chmouel/lazyworktree) | Best Go/BubbleTea reference for worktree TUI |
+| 5 | [raine/workmux](https://github.com/raine/workmux) | Best worktree+tmux workflow design (Rust, but great config/UX) |
+| 6 | [ivaaaan/smug](https://github.com/ivaaaan/smug) | Clean Go reference for YAML-driven tmux session management |
+| 7 | [kbwo/ccmanager](https://github.com/kbwo/ccmanager) | Status hooks, multi-agent patterns, deterministic status detection |
 | 8 | [GianlucaP106/gotmux](https://github.com/GianlucaP106/gotmux) | Go tmux library API design |
 
 ### Additional Resource

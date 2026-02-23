@@ -82,19 +82,47 @@ session_prefix: "pr-"
 - **BoltDB** for state persistence (single-file, no CGo, embedded)
 - **Viper** for YAML config
 
+## Worktree placement
+
+**Default: per-repo `.worktrees/` sibling directory**, outside the repo.
+
+```
+<parent>/
+├── myrepo/                        # main worktree
+└── .worktrees/
+    └── myrepo/
+        ├── feat-x/                # worktree
+        └── bugfix-y/              # worktree
+```
+
+**Why not inside the repo:** `.gitignore` only controls git -- file watchers (Vite/webpack/chokidar), IDE indexers, monorepo tools, and OS-level FSEvents all ignore `.gitignore` and will recurse into nested worktrees. See `docs/deep-dive.md` section 2b for full analysis.
+
+**Support all existing patterns** (inside-repo `.claude/worktrees/`, shared `.trees/`, sibling dirs) by resolving `<worktree>/.git` pointer files. Never modify `.gitignore`.
+
 ## Session history discovery
 
-Claude Code stores sessions in `~/.claude/projects/[path-with-slashes-replaced-by-dashes]/`. Known issues with worktree session isolation:
+Claude Code stores sessions in `~/.claude/projects/[path-with-slashes-replaced-by-dashes]/`. Known upstream issues with worktree session isolation:
 
 - `sessions-index.json` in worktree dirs often references the parent repo's `projectPath`, not the worktree
 - Some worktree dirs have no `sessions-index.json` at all (sessions silently lost)
+- Session duplication: main repo sessions byte-for-byte copied into worktree project dirs
+- Orphaned sessions from deleted worktrees become unreachable via `/resume`
 - Related upstream issues: anthropics/claude-code#15776, #27676
 
-**Parkranger's approach:** Don't trust sessions-index.json. Scan JSONL files directly and match to worktrees by the `cwd` field inside each file. Build and cache our own index. Provide built-in session search (replacing the manual `ccfind` bash script pattern).
+**Two-tier UX (use Claude's history now, prepare for upstream fix):**
+
+1. **Default view:** Show Claude's own session history per worktree. Read `sessions-index.json` and JSONL files from the expected encoded path. When Claude's discovery works, use it as-is -- zero overhead.
+
+2. **"Find sessions" action:** User-triggered deep scan when sessions are missing. Scans ALL `~/.claude/projects/` JSONL files, matches to worktrees by `cwd` field inside each file, finds orphaned sessions from deleted worktrees, supports keyword search. This is the `ccfind` replacement, but concurrent Go instead of sequential bash.
+
+3. **Forward-compatible:** If Anthropic fixes upstream bugs, the default view handles everything and the deep scan becomes a power-user tool. Nothing to rip out.
+
+Resume always uses `claude --resume <session-id>`, bypassing Claude's broken path-based lookup.
 
 ```
 internal/agent/sessions.go:
-  - ScanSessions(projectsDir) → []Session
+  - ListSessions(worktreePath) → []Session          // tier 1: Claude's own index
+  - DeepScanSessions(projectsDir) → []Session       // tier 2: full JSONL scan
   - MatchToWorktree(session, worktreePath) → bool
   - SearchSessions(keyword, projectFilter) → []SessionMatch
 ```
