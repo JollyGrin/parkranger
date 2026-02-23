@@ -30,3 +30,13 @@ func TestSessionExistsNonexistent(t *testing.T) {
 		t.Error("expected false for nonexistent session")
 	}
 }
+
+func TestCapturePaneNonexistent(t *testing.T) {
+	out, err := CapturePane("pr-test-nonexistent-session-xyz:0.0")
+	if err != nil {
+		t.Errorf("expected nil error for nonexistent pane, got %v", err)
+	}
+	if out != "" {
+		t.Errorf("expected empty output, got %q", out)
+	}
+}

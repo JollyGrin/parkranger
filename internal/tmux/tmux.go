@@ -73,6 +73,17 @@ func AttachSession(name string) error {
 	return syscall.Exec(tmuxPath, []string{"tmux", "attach-session", "-t", name}, os.Environ())
 }
 
+// CapturePane captures the visible content of a tmux pane.
+// Returns "" (not an error) if the pane or session doesn't exist.
+func CapturePane(target string) (string, error) {
+	out, err := run("capture-pane", "-p", "-J", "-t", target)
+	if err != nil {
+		// Pane doesn't exist — not an error for our purposes
+		return "", nil
+	}
+	return out, nil
+}
+
 // KillSession destroys the named tmux session.
 func KillSession(name string) error {
 	_, err := run("kill-session", "-t", name)
