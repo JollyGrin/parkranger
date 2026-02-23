@@ -23,6 +23,13 @@ Existing tools (claude-squad, ccmanager, workmux) each solve pieces of this but 
 - **Session persistence** -- conversation hashes and session metadata survive restarts so state reattaches to existing worktrees
 - **Streaming preview** -- see Claude's response streaming in the dashboard without switching sessions
 
+## Prerequisites
+
+- **Go 1.24+** -- to build from source
+- **tmux** -- parkranger creates and manages tmux sessions (`brew install tmux` / `apt install tmux`)
+- **git** -- worktree operations require git 2.15+ (`git worktree` support)
+- **Claude Code** -- the CLI (`claude`) must be on PATH for agent panes
+
 ## Sessions in workspaces
 
 Each repo gets one tmux session. Each worktree gets a window inside it with a vertical split: editor on the left, Claude Code on the right.
