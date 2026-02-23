@@ -14,7 +14,7 @@ type sessionMeta struct {
 	ID          string
 	CWD         string
 	FirstPrompt string // 80-char truncated for list labels
-	FullPrompt  string // 500-char version for preview
+	FullPrompt  string // 4000-char version for preview
 	GitBranch   string
 }
 
@@ -100,7 +100,7 @@ func extractContent(raw json.RawMessage) (string, string) {
 	// Try plain string
 	var s string
 	if err := json.Unmarshal(raw, &s); err == nil {
-		return truncate(s, 80), truncatePreview(s, 500)
+		return truncate(s, 80), truncatePreview(s, 4000)
 	}
 
 	// Try array of content blocks

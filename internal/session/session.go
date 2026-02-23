@@ -13,7 +13,7 @@ type Session struct {
 	ID          string
 	CWD         string
 	FirstPrompt string // 80-char truncated for list labels
-	FullPrompt  string // 500-char version for preview
+	FullPrompt  string // 4000-char version for preview
 	ModTime     time.Time
 	GitBranch   string
 }
