@@ -23,6 +23,54 @@ Existing tools (claude-squad, ccmanager, workmux) each solve pieces of this but 
 - **Session persistence** -- conversation hashes and session metadata survive restarts so state reattaches to existing worktrees
 - **Streaming preview** -- see Claude's response streaming in the dashboard without switching sessions
 
+## Sessions in workspaces
+
+Each repo gets one tmux session. Each worktree gets a window inside it with a vertical split: editor on the left, Claude Code on the right.
+
+```
+tmux session: pr-myrepo
+├── window: dashboard          # parkranger TUI
+├── window: feat-auth          # worktree window
+│   ├── pane 0 (left):  nvim   # editor, cd'd into worktree
+│   └── pane 1 (right): claude  # Claude Code, cd'd into worktree
+└── window: fix-login          # another worktree window
+    ├── pane 0 (left):  nvim
+    └── pane 1 (right): claude
+```
+
+On disk, worktrees live as siblings to the repo:
+
+```
+~/git/
+├── myrepo/                           # main checkout
+└── .worktrees/
+    └── myrepo/
+        ├── feat-auth/                # worktree (own branch)
+        └── fix-login/                # worktree (own branch)
+```
+
+Claude Code sessions are stored per-worktree path in `~/.claude/projects/`:
+
+```
+~/.claude/projects/
+├── -Users-me-git-myrepo/                          # main repo sessions
+│   ├── a1b2c3.jsonl
+│   └── d4e5f6.jsonl
+└── -Users-me-git--worktrees-myrepo-feat-auth/     # worktree sessions
+    ├── g7h8i9.jsonl
+    └── j0k1l2.jsonl
+```
+
+The dashboard polls each Claude pane (`tmux capture-pane`) to classify agent status:
+
+| Status | Meaning | How detected |
+|--------|---------|-------------|
+| **waiting** | Claude needs input | Permission prompts, yes/no questions, text input mode |
+| **busy** | Claude is working | `"esc to interrupt"` present, or pane output hash changed |
+| **idle** | Nothing happening | Output stable, no active patterns |
+
+When opening a worktree, parkranger shows the live session (if the window exists) plus historical Claude sessions from the JSONL files. Resuming a session uses `claude --resume <session-id>`.
+
 ## Architecture
 
 ```
