@@ -2,11 +2,12 @@
 # tapes/demo.tape — Automated walkthrough of parkranger
 #
 # Demonstrates:
-#   1. parkranger help   — show available commands
-#   2. parkranger ls     — list worktrees with live status
-#   3. parkranger        — interactive picker with j/k navigation
+#   1. parkranger help     — available commands
+#   2. parkranger ls       — worktrees with live session status
+#   3. parkranger          — interactive picker (navigate branches)
+#   4. Ctrl-b w            — tmux tree showing parkranger-managed windows
 #
-# Prerequisites: go toolchain, tmux, asciinema
+# Prerequisites: go, tmux, asciinema, existing parkranger sessions
 # Run: ./tapes/demo.tape
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -20,7 +21,6 @@ echo "Building parkranger..."
 # ── Start recording ──────────────────────────────────────────
 tape_init "parkranger-demo" 120 35
 
-# Set up: cd to the project so paths look clean, then clear
 tape_run "cd '$PROJECT_DIR'"
 tape_wait_for "\$" 3
 tape_run "clear"
@@ -32,18 +32,18 @@ tape_key Enter
 tape_wait_for "delete" 5
 tape_sleep 3
 
-# ── 2. List worktrees with status ────────────────────────────
+# ── 2. List worktrees with live status ───────────────────────
 tape_type "./parkranger ls" 0.06
 tape_key Enter
 tape_wait_for "\$" 5
 tape_sleep 3
 
-# ── 3. Interactive picker ────────────────────────────────────
+# ── 3. Interactive picker — browse branches ──────────────────
 tape_type "./parkranger" 0.06
 tape_key Enter
 tape_sleep 2
 
-# Browse through worktree items
+# Navigate through worktree items
 tape_key j
 tape_sleep 0.8
 tape_key j
@@ -51,20 +51,49 @@ tape_sleep 0.8
 tape_key j
 tape_sleep 0.8
 
-# Scroll back up
+# Back up
 tape_key k
 tape_sleep 0.8
 tape_key k
-tape_sleep 0.8
+tape_sleep 1.5
 
-# Pause on first item to show the picker
+# Open the selected branch
+tape_key Enter
 tape_sleep 2
 
-# Exit without selecting
-tape_key C-c
-tape_sleep 1
+# ── 4. Show tmux tree (Ctrl-b w) ────────────────────────────
+tape_key C-b
+tape_sleep 0.3
+tape_key w
+tape_sleep 2
 
-# ── Done ─────────────────────────────────────────────────────
+# Navigate the session/window tree
+tape_key Down
+tape_sleep 0.5
+tape_key Down
+tape_sleep 0.5
+tape_key Down
+tape_sleep 0.5
+tape_key Down
+tape_sleep 0.5
+tape_sleep 2
+
+# Close the tree
+tape_key q
+tape_sleep 0.5
+
+# ── 5. Ctrl-C a few times and exit ──────────────────────────
+tape_key C-c
+tape_sleep 0.3
+tape_key C-c
+tape_sleep 0.3
+tape_key C-c
+tape_sleep 0.5
+
+tape_type "exit" 0.08
+tape_key Enter
+tape_sleep 0.5
+
 tape_finish
 
 echo ""
