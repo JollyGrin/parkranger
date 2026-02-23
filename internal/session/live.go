@@ -36,14 +36,14 @@ type LiveInfo struct {
 	Status    AgentStatus // idle/busy/waiting
 }
 
-// DetectLive checks the tmux session for a running Claude agent.
-// Captures pane :0.1 (the right pane where claude runs).
-func DetectLive(sessionName string) LiveInfo {
-	if !tmux.SessionExists(sessionName) {
+// DetectLive checks the tmux window for a running Claude agent.
+// Captures pane <session>:<window>.1 (the right pane where claude runs).
+func DetectLive(sessionName, windowName string) LiveInfo {
+	if !tmux.WindowExists(sessionName, windowName) {
 		return LiveInfo{}
 	}
 
-	output, err := tmux.CapturePane(sessionName + ":0.1")
+	output, err := tmux.CapturePane(sessionName + ":" + windowName + ".1")
 	if err != nil || output == "" {
 		return LiveInfo{Exists: true}
 	}

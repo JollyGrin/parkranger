@@ -22,12 +22,28 @@ func run(args ...string) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-// SessionName builds a sanitized tmux session name: pr-<repo>-<worktree>.
+// SessionName builds a sanitized tmux session name: pr-<repo>.
 // Replaces characters that tmux forbids in session names (. and :).
-func SessionName(repo, worktree string) string {
-	name := fmt.Sprintf("pr-%s-%s", repo, worktree)
+func SessionName(repo string) string {
+	name := fmt.Sprintf("pr-%s", repo)
 	r := strings.NewReplacer(".", "-", ":", "-")
 	return r.Replace(name)
+}
+
+// WindowName sanitizes a worktree name for use as a tmux window name.
+func WindowName(worktree string) string {
+	r := strings.NewReplacer(".", "-", ":", "-")
+	return r.Replace(worktree)
+}
+
+// WindowTarget returns a tmux target for a window: "pr-<repo>:<worktree>".
+func WindowTarget(repo, worktree string) string {
+	return SessionName(repo) + ":" + WindowName(worktree)
+}
+
+// PaneTarget returns a tmux target for a specific pane: "pr-<repo>:<worktree>.<pane>".
+func PaneTarget(repo, worktree string, pane int) string {
+	return fmt.Sprintf("%s.%d", WindowTarget(repo, worktree), pane)
 }
 
 // SessionExists returns true if the named tmux session exists.
@@ -88,6 +104,69 @@ func CapturePane(target string) (string, error) {
 func KillSession(name string) error {
 	_, err := run("kill-session", "-t", name)
 	return err
+}
+
+// EnsureSession creates the repo-level tmux session with a "dashboard" window
+// if it doesn't already exist. No-op if the session is already running.
+func EnsureSession(repo, repoRootDir string) error {
+	name := SessionName(repo)
+	if SessionExists(name) {
+		return nil
+	}
+	if _, err := run("new-session", "-d", "-s", name, "-n", "dashboard", "-c", repoRootDir); err != nil {
+		return err
+	}
+	return nil
+}
+
+// WindowExists returns true if the named window exists in the given session.
+func WindowExists(session, window string) bool {
+	out, err := run("list-windows", "-t", session, "-F", "#{window_name}")
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if strings.TrimSpace(line) == window {
+			return true
+		}
+	}
+	return false
+}
+
+// CreateWindow creates a new named window in the given session.
+func CreateWindow(session, name, workDir string) error {
+	_, err := run("new-window", "-t", session, "-n", name, "-c", workDir)
+	return err
+}
+
+// KillWindow destroys a named window in the given session.
+func KillWindow(session, windowName string) error {
+	_, err := run("kill-window", "-t", session+":"+windowName)
+	return err
+}
+
+// AttachWindow attaches to (or switches to) a specific window in a session.
+// select-window first so the target window is active, then switch-client/attach.
+func AttachWindow(session, windowName string) error {
+	target := session + ":" + windowName
+
+	// Select the window first — switch-client and attach-session only take
+	// a target-session, so they ignore the :window suffix.
+	if _, err := run("select-window", "-t", target); err != nil {
+		return fmt.Errorf("select-window %s: %w", target, err)
+	}
+
+	if IsInsideTmux() {
+		_, err := run("switch-client", "-t", session)
+		return err
+	}
+
+	tmuxPath, err := exec.LookPath("tmux")
+	if err != nil {
+		return fmt.Errorf("tmux not found: %w", err)
+	}
+
+	return syscall.Exec(tmuxPath, []string{"tmux", "attach-session", "-t", session}, os.Environ())
 }
 
 // IsInsideTmux returns true if the current process is running inside tmux.
