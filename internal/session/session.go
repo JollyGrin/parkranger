@@ -12,7 +12,8 @@ import (
 type Session struct {
 	ID          string
 	CWD         string
-	FirstPrompt string
+	FirstPrompt string // 80-char truncated for list labels
+	FullPrompt  string // 500-char version for preview
 	ModTime     time.Time
 	GitBranch   string
 }
@@ -70,6 +71,7 @@ func ListSessions(worktreePath string) ([]Session, error) {
 			ID:          meta.ID,
 			CWD:         meta.CWD,
 			FirstPrompt: meta.FirstPrompt,
+			FullPrompt:  meta.FullPrompt,
 			ModTime:     info.ModTime(),
 			GitBranch:   meta.GitBranch,
 		})

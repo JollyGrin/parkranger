@@ -13,7 +13,8 @@ import (
 type sessionMeta struct {
 	ID          string
 	CWD         string
-	FirstPrompt string
+	FirstPrompt string // 80-char truncated for list labels
+	FullPrompt  string // 500-char version for preview
 	GitBranch   string
 }
 
@@ -55,9 +56,10 @@ func parseJSONLMeta(filePath, worktreePath string) (*sessionMeta, error) {
 		}
 
 		if entry.Type == "user" && meta.FirstPrompt == "" {
-			text := extractMessageText(entry.Message)
-			if text != "" && !isBoilerplate(text) {
-				meta.FirstPrompt = text
+			short, full := extractMessageText(entry.Message)
+			if short != "" && !isBoilerplate(short) {
+				meta.FirstPrompt = short
+				meta.FullPrompt = full
 			}
 		}
 	}
@@ -75,9 +77,10 @@ func parseJSONLMeta(filePath, worktreePath string) (*sessionMeta, error) {
 
 // extractMessageText pulls display text from a Claude JSONL message field.
 // The message is {role, content} where content is a string or [{type:"text", text:"..."}].
-func extractMessageText(raw json.RawMessage) string {
+// Returns (short 80-char, full 500-char) truncations.
+func extractMessageText(raw json.RawMessage) (string, string) {
 	if len(raw) == 0 {
-		return ""
+		return "", ""
 	}
 
 	// The message field is {role: "user", content: <string or array>}
@@ -85,18 +88,19 @@ func extractMessageText(raw json.RawMessage) string {
 		Content json.RawMessage `json:"content"`
 	}
 	if err := json.Unmarshal(raw, &msg); err != nil || len(msg.Content) == 0 {
-		return ""
+		return "", ""
 	}
 
 	return extractContent(msg.Content)
 }
 
 // extractContent extracts text from a content field that can be a string or array of blocks.
-func extractContent(raw json.RawMessage) string {
+// Returns (short 80-char, full 500-char) truncations.
+func extractContent(raw json.RawMessage) (string, string) {
 	// Try plain string
 	var s string
 	if err := json.Unmarshal(raw, &s); err == nil {
-		return truncate(s, 80)
+		return truncate(s, 80), truncatePreview(s, 500)
 	}
 
 	// Try array of content blocks
@@ -107,12 +111,22 @@ func extractContent(raw json.RawMessage) string {
 	if err := json.Unmarshal(raw, &blocks); err == nil {
 		for _, b := range blocks {
 			if b.Type == "text" && b.Text != "" {
-				return truncate(b.Text, 80)
+				return truncate(b.Text, 80), truncatePreview(b.Text, 500)
 			}
 		}
 	}
 
-	return ""
+	return "", ""
+}
+
+// truncatePreview cuts s to maxLen runes, preserving newlines for preview display.
+func truncatePreview(s string, maxLen int) string {
+	s = strings.TrimSpace(s)
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen-3]) + "..."
 }
 
 // truncate cuts s to maxLen runes, appending "..." if truncated.

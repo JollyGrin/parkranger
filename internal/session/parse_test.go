@@ -8,24 +8,33 @@ import (
 
 func TestExtractMessageText_String(t *testing.T) {
 	raw := []byte(`{"role":"user","content":"Fix the tooltip positioning bug"}`)
-	got := extractMessageText(raw)
-	if got != "Fix the tooltip positioning bug" {
-		t.Errorf("got %q", got)
+	short, full := extractMessageText(raw)
+	if short != "Fix the tooltip positioning bug" {
+		t.Errorf("short = %q", short)
+	}
+	if full != "Fix the tooltip positioning bug" {
+		t.Errorf("full = %q", full)
 	}
 }
 
 func TestExtractMessageText_Array(t *testing.T) {
 	raw := []byte(`{"role":"user","content":[{"type":"text","text":"Add TGS tooltip component"}]}`)
-	got := extractMessageText(raw)
-	if got != "Add TGS tooltip component" {
-		t.Errorf("got %q", got)
+	short, full := extractMessageText(raw)
+	if short != "Add TGS tooltip component" {
+		t.Errorf("short = %q", short)
+	}
+	if full != "Add TGS tooltip component" {
+		t.Errorf("full = %q", full)
 	}
 }
 
 func TestExtractMessageText_Empty(t *testing.T) {
-	got := extractMessageText(nil)
-	if got != "" {
-		t.Errorf("got %q, want empty", got)
+	short, full := extractMessageText(nil)
+	if short != "" {
+		t.Errorf("short = %q, want empty", short)
+	}
+	if full != "" {
+		t.Errorf("full = %q, want empty", full)
 	}
 }
 
