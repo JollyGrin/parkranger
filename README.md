@@ -70,11 +70,11 @@ Claude Code sessions are stored per-worktree path in `~/.claude/projects/`:
 
 The dashboard polls each Claude pane (`tmux capture-pane`) to classify agent status:
 
-| Status | Meaning | How detected |
-|--------|---------|-------------|
-| **waiting** | Claude needs input | Permission prompts, yes/no questions, text input mode |
-| **busy** | Claude is working | `"esc to interrupt"` present, or pane output hash changed |
-| **idle** | Nothing happening | Output stable, no active patterns |
+| Status      | Meaning            | How detected                                              |
+| ----------- | ------------------ | --------------------------------------------------------- |
+| **waiting** | Claude needs input | Permission prompts, yes/no questions, text input mode     |
+| **busy**    | Claude is working  | `"esc to interrupt"` present, or pane output hash changed |
+| **idle**    | Nothing happening  | Output stable, no active patterns                         |
 
 When opening a worktree, parkranger shows the live session (if the window exists) plus historical Claude sessions from the JSONL files. Resuming a session uses `claude --resume <session-id>`.
 
@@ -105,15 +105,15 @@ The TUI is a view layer on top of an engine that can run headless. The engine ha
 
 ## Tech stack
 
-| Layer | Choice |
-|-------|--------|
-| Language | Go |
-| TUI | [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Bubbles](https://github.com/charmbracelet/bubbles) + [Lip Gloss](https://github.com/charmbracelet/lipgloss) |
-| Markdown preview | [Glamour](https://github.com/charmbracelet/glamour) |
-| Tmux interaction | `os/exec` wrapping `tmux` CLI (evaluate [gotmux](https://github.com/GianlucaP106/gotmux) later) |
-| Git worktrees | `os/exec` wrapping `git worktree` |
-| Config | YAML via [Viper](https://github.com/spf13/viper) |
-| State | BoltDB or SQLite (pure Go via modernc) |
+| Layer            | Choice                                                                                                                                                                  |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Language         | Go                                                                                                                                                                      |
+| TUI              | [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Bubbles](https://github.com/charmbracelet/bubbles) + [Lip Gloss](https://github.com/charmbracelet/lipgloss) |
+| Markdown preview | [Glamour](https://github.com/charmbracelet/glamour)                                                                                                                     |
+| Tmux interaction | `os/exec` wrapping `tmux` CLI (evaluate [gotmux](https://github.com/GianlucaP106/gotmux) later)                                                                         |
+| Git worktrees    | `os/exec` wrapping `git worktree`                                                                                                                                       |
+| Config           | YAML via [Viper](https://github.com/spf13/viper)                                                                                                                        |
+| State            | BoltDB or SQLite (pure Go via modernc)                                                                                                                                  |
 
 ## Prior art
 
@@ -122,3 +122,31 @@ See [docs/research.md](docs/research.md) for a detailed landscape analysis of 30
 ## Status
 
 Pre-implementation. Engine design phase.
+
+## Record ascii
+
+Structure:
+lib/tape.sh — DSL library (source this from tape
+scripts)
+scripts/clean-cast.sh — Strip hostnames + cap delays in .cast
+files
+scripts/cast-to-mp4.sh — Convert .cast → GIF → MP4 via agg +
+ffmpeg
+tapes/demo.tape — Example automated recording for
+parkranger
+casts/ — Output directory for recordings
+(gitignored)
+
+Workflow:
+
+1. Record — run a tape: ./tapes/demo.tape
+2. Clean — strip personal info: ./scripts/clean-cast.sh
+   casts/parkranger-demo.cast --inplace
+3. Convert — to MP4: ./scripts/cast-to-mp4.sh
+   casts/parkranger-demo.cast -o demo.mp4
+
+The tape DSL gives you tape_run, tape_type, tape_key,
+tape_wait_for, and tape_sleep to script repeatable demos. The
+example tape in tapes/demo.tape builds parkranger, launches it,
+waits for the dashboard, then exits — customize it for your
+actual demo flow.
