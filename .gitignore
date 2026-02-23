@@ -1,3 +1,6 @@
 .dmux/
 parkranger
 !cmd/parkranger
+casts/*.cast
+*.mp4
+*.gif
