@@ -4,6 +4,7 @@ package worktree
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -102,6 +103,13 @@ func Add(repoRoot, name, baseBranch string) (Worktree, error) {
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return Worktree{}, fmt.Errorf("git worktree add: %w\n%s", err, strings.TrimSpace(stderr.String()))
+	}
+
+	// Push the new branch and set up tracking so `git push` works immediately.
+	if err := git.PushNewBranch(wtPath, name); err != nil {
+		// Non-fatal: worktree is usable, just needs manual push -u later.
+		// This can fail if offline or if origin doesn't accept the push.
+		fmt.Fprintf(os.Stderr, "warning: could not push branch %s: %v\n", name, err)
 	}
 
 	return Worktree{

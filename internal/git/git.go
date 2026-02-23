@@ -169,6 +169,13 @@ func DeleteBranch(root, branch string) error {
 	return err
 }
 
+// PushNewBranch pushes a local branch to origin and sets up upstream tracking.
+// Equivalent to: git push -u origin <branch>
+func PushNewBranch(root, branch string) error {
+	_, err := run(root, "push", "-u", "origin", branch)
+	return err
+}
+
 // ListRemoteBranches returns branch names from origin, sorted by most recent
 // commit first. Each entry is the short name (e.g. "main", "develop").
 func ListRemoteBranches(root string) ([]string, error) {
