@@ -677,20 +677,104 @@ func cmdDelete(name string) error {
 
 // --- Interactive mode ---
 
+type menuChoice struct {
+	action string // "open", "new", "merge", "delete"
+	name   string // worktree name (for open)
+}
+
+type menuItem struct {
+	label  string
+	choice menuChoice
+}
+
+type menuModel struct {
+	title     string
+	items     []menuItem
+	cursor    int
+	selected  menuChoice
+	confirmed bool
+	quitting  bool
+}
+
+func (m menuModel) Init() tea.Cmd { return nil }
+
+func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(m.items)-1 {
+				m.cursor++
+			}
+		case "enter":
+			m.selected = m.items[m.cursor].choice
+			m.confirmed = true
+			m.quitting = true
+			return m, tea.Quit
+		case "n":
+			m.selected = menuChoice{action: "new"}
+			m.confirmed = true
+			m.quitting = true
+			return m, tea.Quit
+		case "m":
+			m.selected = menuChoice{action: "merge"}
+			m.confirmed = true
+			m.quitting = true
+			return m, tea.Quit
+		case "d":
+			m.selected = menuChoice{action: "delete"}
+			m.confirmed = true
+			m.quitting = true
+			return m, tea.Quit
+		case "q", "esc", "ctrl+c":
+			m.quitting = true
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+var (
+	menuTitleStyle  = lipgloss.NewStyle().Bold(true).MarginBottom(1)
+	menuCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	menuDimStyle    = lipgloss.NewStyle().Faint(true)
+	menuHintStyle   = lipgloss.NewStyle().Faint(true).MarginTop(1)
+)
+
+func (m menuModel) View() string {
+	if m.quitting {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString(menuTitleStyle.Render(" "+m.title) + "\n")
+
+	for i, item := range m.items {
+		if i == m.cursor {
+			b.WriteString(menuCursorStyle.Render(" > " + item.label))
+		} else {
+			b.WriteString(menuDimStyle.Render("   " + item.label))
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString(menuHintStyle.Render("  n new  m merge  d delete  q quit"))
+	b.WriteString("\n")
+
+	return b.String()
+}
+
 func interactive() error {
 	_, repoName, wts, err := resolveRepo()
 	if err != nil {
 		return err
 	}
 
-	// Build options: worktrees + actions
-	type choice struct {
-		action string // "open", "new", "merge", "delete"
-		name   string // worktree name (for open/merge/delete)
-	}
-
-	var options []huh.Option[choice]
-
+	var items []menuItem
 	for _, wt := range wts {
 		sessInfo := formatSessionInfo(repoName, wt)
 		status := formatStatus(wt)
@@ -701,28 +785,27 @@ func interactive() error {
 		if status != "" {
 			label += "  " + status
 		}
-		options = append(options, huh.NewOption(label, choice{action: "open", name: wt.Name}))
+		items = append(items, menuItem{
+			label:  label,
+			choice: menuChoice{action: "open", name: wt.Name},
+		})
 	}
 
-	options = append(options,
-		huh.NewOption("[n] New worktree", choice{action: "new"}),
-		huh.NewOption("[m] Merge worktree", choice{action: "merge"}),
-		huh.NewOption("[d] Delete worktree", choice{action: "delete"}),
-	)
-
-	var selected choice
-	err = huh.NewSelect[choice]().
-		Title(repoName).
-		Options(options...).
-		Value(&selected).
-		Run()
+	model := menuModel{title: repoName, items: items}
+	p := tea.NewProgram(model)
+	result, err := p.Run()
 	if err != nil {
 		return err
 	}
 
-	switch selected.action {
+	m := result.(menuModel)
+	if !m.confirmed {
+		return nil
+	}
+
+	switch m.selected.action {
 	case "open":
-		return cmdOpen(selected.name)
+		return cmdOpen(m.selected.name)
 
 	case "new":
 		var name string
