@@ -4,6 +4,8 @@ A Go TUI for managing parallel AI coding sessions across multiple repos, worktre
 
 https://github.com/user-attachments/assets/998222e1-4fe4-4ccb-a322-9ec6f7020292
 
+WARNING: this is made purely for my own workflow - be warned.
+
 ## Problem
 
 Working with multiple Claude Code agents across different repos and worktrees involves too much manual ceremony:
