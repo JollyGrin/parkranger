@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -95,6 +96,34 @@ func CapturePane(target string) (string, error) {
 	out, err := run("capture-pane", "-p", "-J", "-t", target)
 	if err != nil {
 		// Pane doesn't exist — not an error for our purposes
+		return "", nil
+	}
+	return out, nil
+}
+
+// CapturePaneBottom captures only the bottom N visible lines of a tmux pane.
+// Queries the pane height and uses -S to skip lines above the bottom region.
+// This ensures we always read the most recent activity regardless of pane size.
+// Returns "" (not an error) if the pane or session doesn't exist.
+func CapturePaneBottom(target string, lines int) (string, error) {
+	heightStr, err := run("display-message", "-p", "-t", target, "#{pane_height}")
+	if err != nil {
+		return "", nil // pane doesn't exist
+	}
+	height, _ := strconv.Atoi(strings.TrimSpace(heightStr))
+	if height <= 0 {
+		return "", nil
+	}
+
+	// Calculate start offset so we only capture the bottom `lines` rows.
+	// tmux capture-pane -S uses 0-indexed rows from the top of the visible pane.
+	start := 0
+	if height > lines {
+		start = height - lines
+	}
+
+	out, err := run("capture-pane", "-p", "-J", "-S", strconv.Itoa(start), "-t", target)
+	if err != nil {
 		return "", nil
 	}
 	return out, nil
