@@ -2,6 +2,8 @@
 
 A Go TUI for managing parallel AI coding sessions across multiple repos, worktrees, and tmux.
 
+https://github.com/user-attachments/assets/998222e1-4fe4-4ccb-a322-9ec6f7020292
+
 ## Problem
 
 Working with multiple Claude Code agents across different repos and worktrees involves too much manual ceremony:
