@@ -683,8 +683,14 @@ type menuChoice struct {
 }
 
 type menuItem struct {
-	label  string
-	choice menuChoice
+	name    string
+	live    session.LiveInfo
+	sessNum int
+	ahead   int
+	behind  int
+	dirty   bool
+	isMain  bool
+	choice  menuChoice
 }
 
 type menuModel struct {
@@ -694,12 +700,17 @@ type menuModel struct {
 	selected  menuChoice
 	confirmed bool
 	quitting  bool
+	width     int
+	height    int
 }
 
 func (m menuModel) Init() tea.Cmd { return nil }
 
 func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up", "k":
@@ -739,33 +750,143 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 var (
-	menuTitleStyle  = lipgloss.NewStyle().Bold(true).MarginBottom(1)
-	menuCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-	menuDimStyle    = lipgloss.NewStyle().Faint(true)
-	menuHintStyle   = lipgloss.NewStyle().Faint(true).MarginTop(1)
+	menuPanelStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("8")).
+			Padding(1, 2)
+
+	menuTitleStyle = lipgloss.NewStyle().Bold(true)
+	menuDimStyle   = lipgloss.NewStyle().Faint(true)
+
+	menuAccentColor  = lipgloss.Color("4")
+	menuIdleColor    = lipgloss.Color("2")
+	menuBusyColor    = lipgloss.Color("4")
+	menuWaitingColor = lipgloss.Color("3")
 )
+
+func statusColor(s session.AgentStatus) lipgloss.Color {
+	switch s {
+	case session.StatusIdle:
+		return menuIdleColor
+	case session.StatusBusy:
+		return menuBusyColor
+	case session.StatusWaiting:
+		return menuWaitingColor
+	default:
+		return lipgloss.Color("8")
+	}
+}
 
 func (m menuModel) View() string {
 	if m.quitting {
 		return ""
 	}
 
-	var b strings.Builder
-	b.WriteString(menuTitleStyle.Render(" "+m.title) + "\n")
-
-	for i, item := range m.items {
-		if i == m.cursor {
-			b.WriteString(menuCursorStyle.Render(" > " + item.label))
-		} else {
-			b.WriteString(menuDimStyle.Render("   " + item.label))
+	// Column widths from data
+	maxName := 0
+	for _, item := range m.items {
+		if n := len(item.name); n > maxName {
+			maxName = n
 		}
-		b.WriteString("\n")
+	}
+	if maxName < 12 {
+		maxName = 12
 	}
 
-	b.WriteString(menuHintStyle.Render("  n new  m merge  d delete  q quit"))
-	b.WriteString("\n")
+	// Build rows
+	var rows []string
+	for i, item := range m.items {
+		// Cursor
+		var cursor string
+		if i == m.cursor {
+			cursor = lipgloss.NewStyle().Foreground(menuAccentColor).Render("▸ ")
+		} else {
+			cursor = "  "
+		}
 
-	return b.String()
+		// Name
+		padded := fmt.Sprintf("%-*s", maxName, item.name)
+		var name string
+		if i == m.cursor {
+			name = lipgloss.NewStyle().Bold(true).Render(padded)
+		} else {
+			name = menuDimStyle.Render(padded)
+		}
+
+		// Status indicator
+		statusWidth := 10
+		var statusCol string
+		if item.live.HasClaude {
+			c := statusColor(item.live.Status)
+			dot := lipgloss.NewStyle().Foreground(c).Render("●")
+			label := item.live.Status.String()
+			statusCol = dot + " " + lipgloss.NewStyle().Foreground(c).Render(label)
+			if pad := statusWidth - 2 - len(label); pad > 0 {
+				statusCol += strings.Repeat(" ", pad)
+			}
+		} else if item.live.Exists {
+			statusCol = menuDimStyle.Render("● live")
+			statusCol += strings.Repeat(" ", statusWidth-6)
+		} else {
+			statusCol = strings.Repeat(" ", statusWidth)
+		}
+
+		// Session count
+		sessWidth := 12
+		var sessCol string
+		if item.sessNum > 0 {
+			noun := "sessions"
+			if item.sessNum == 1 {
+				noun = "session"
+			}
+			s := fmt.Sprintf("%d %s", item.sessNum, noun)
+			sessCol = menuDimStyle.Render(s)
+			if pad := sessWidth - len(s); pad > 0 {
+				sessCol += strings.Repeat(" ", pad)
+			}
+		} else {
+			sessCol = strings.Repeat(" ", sessWidth)
+		}
+
+		// Git badges
+		var badges []string
+		if item.ahead > 0 {
+			badges = append(badges, menuDimStyle.Render(fmt.Sprintf("↑%d", item.ahead)))
+		}
+		if item.behind > 0 {
+			badges = append(badges, menuDimStyle.Render(fmt.Sprintf("↓%d", item.behind)))
+		}
+		if item.dirty {
+			badges = append(badges, lipgloss.NewStyle().Foreground(menuWaitingColor).Render("✱"))
+		}
+		gitCol := strings.Join(badges, " ")
+
+		row := cursor + name + "  " + statusCol + "  " + sessCol + gitCol
+		rows = append(rows, row)
+	}
+
+	// Title
+	title := menuTitleStyle.Render("parkranger") +
+		menuDimStyle.Render(" · "+m.title)
+
+	// Keybind hints with accented keys
+	accent := lipgloss.NewStyle().Foreground(menuAccentColor)
+	hints := accent.Render("n") + menuDimStyle.Render(" new") + "   " +
+		accent.Render("m") + menuDimStyle.Render(" merge") + "   " +
+		accent.Render("d") + menuDimStyle.Render(" delete") + "   " +
+		accent.Render("q") + menuDimStyle.Render(" quit")
+
+	content := title + "\n\n" + strings.Join(rows, "\n") + "\n\n" + hints
+	panel := menuPanelStyle.Render(content)
+
+	// Center in terminal
+	if m.width > 0 && m.height > 0 {
+		return lipgloss.Place(m.width, m.height,
+			lipgloss.Center, lipgloss.Center,
+			panel)
+	}
+
+	return "\n" + panel + "\n"
 }
 
 func interactive() error {
@@ -776,23 +897,25 @@ func interactive() error {
 
 	var items []menuItem
 	for _, wt := range wts {
-		sessInfo := formatSessionInfo(repoName, wt)
-		status := formatStatus(wt)
-		label := fmt.Sprintf("%-24s", wt.Name)
-		if sessInfo != "" {
-			label += "  " + sessInfo
-		}
-		if status != "" {
-			label += "  " + status
-		}
+		sessName := tmux.SessionName(repoName)
+		winName := tmux.WindowName(wt.Name)
+		live := session.DetectLive(sessName, winName)
+		sessions, _ := session.ListSessions(wt.Path)
+
 		items = append(items, menuItem{
-			label:  label,
-			choice: menuChoice{action: "open", name: wt.Name},
+			name:    wt.Name,
+			live:    live,
+			sessNum: len(sessions),
+			ahead:   wt.Ahead,
+			behind:  wt.Behind,
+			dirty:   wt.Dirty,
+			isMain:  wt.IsMain,
+			choice:  menuChoice{action: "open", name: wt.Name},
 		})
 	}
 
 	model := menuModel{title: repoName, items: items}
-	p := tea.NewProgram(model)
+	p := tea.NewProgram(model, tea.WithAltScreen())
 	result, err := p.Run()
 	if err != nil {
 		return err
