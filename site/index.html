@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>parkranger - Manage parallel AI coding sessions</title>
+    <meta
+      name="description"
+      content="A Go TUI for managing parallel AI coding sessions across multiple repos, worktrees, and tmux."
+    />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Asciinema Player -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/asciinema-player@3/dist/bundle/asciinema-player.css"
+    />
+
+    <!-- Favicon (tree emoji as SVG) -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>"
+    />
+
+    <script type="module" src="/src/main.js"></script>
+  </head>
+
+  <body class="min-h-screen bg-midnight text-text antialiased">
+    <!-- ─── NAV ─── -->
+    <nav
+      class="fixed top-0 z-50 w-full border-b border-border bg-midnight/80 backdrop-blur-md"
+    >
+      <div
+        class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4"
+      >
+        <a href="#" class="flex items-center gap-2 text-lg font-bold">
+          <span class="text-green">$</span>
+          <span class="text-accent-bright">parkranger</span>
+        </a>
+        <div class="flex items-center gap-6 text-sm text-text-dim">
+          <a href="#demo" class="transition hover:text-text">Demo</a>
+          <a href="#features" class="transition hover:text-text">Features</a>
+          <a href="#docs" class="transition hover:text-text">Docs</a>
+          <a
+            href="https://github.com/JollyGrin/parkranger"
+            target="_blank"
+            rel="noopener"
+            class="flex items-center gap-1.5 rounded-md border border-border-bright px-3 py-1.5 transition hover:border-accent hover:text-text"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ─── HERO ─── -->
+    <section class="relative overflow-hidden px-6 pt-32 pb-20">
+      <!-- Background grid -->
+      <div
+        class="pointer-events-none absolute inset-0 opacity-[0.03]"
+        style="
+          background-image: linear-gradient(
+              rgba(165, 180, 252, 0.5) 1px,
+              transparent 1px
+            ),
+            linear-gradient(
+              90deg,
+              rgba(165, 180, 252, 0.5) 1px,
+              transparent 1px
+            );
+          background-size: 60px 60px;
+        "
+      ></div>
+
+      <!-- Glow -->
+      <div
+        class="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2"
+      >
+        <div
+          class="h-[500px] w-[800px] rounded-full bg-accent/10 blur-[120px]"
+        ></div>
+      </div>
+
+      <div class="relative mx-auto max-w-4xl text-center">
+        <div
+          class="mb-6 inline-flex items-center gap-2 rounded-full border border-border-bright bg-surface px-4 py-1.5 text-xs text-text-dim"
+        >
+          <span class="inline-block h-2 w-2 rounded-full bg-green"></span>
+          Go TUI for parallel AI coding sessions
+        </div>
+
+        <h1
+          class="mb-6 text-4xl leading-tight font-bold tracking-tight sm:text-5xl lg:text-6xl"
+        >
+          <span class="text-text">Manage every</span><br />
+          <span
+            class="bg-gradient-to-r from-accent to-pink bg-clip-text text-transparent"
+            >Claude session</span
+          ><br />
+          <span class="text-text">from one dashboard</span>
+        </h1>
+
+        <p
+          class="mx-auto mb-10 max-w-2xl text-base leading-relaxed text-text-dim sm:text-lg"
+        >
+          parkranger gives you a single terminal dashboard across all your
+          repos, worktrees, and tmux sessions. See which AI agents need
+          attention, preview streaming output, and jump into any session
+          instantly.
+        </p>
+
+        <div class="flex flex-wrap items-center justify-center gap-4">
+          <a
+            href="#install"
+            class="inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+          >
+            Install parkranger
+            <span class="text-accent-bright">-&gt;</span>
+          </a>
+          <a
+            href="#demo"
+            class="inline-flex items-center gap-2 rounded-lg border border-border-bright px-6 py-3 text-sm font-semibold text-text-dim transition hover:border-accent-bright hover:text-text"
+          >
+            Watch demo
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── DEMO ─── -->
+    <section id="demo" class="px-6 py-20">
+      <div class="mx-auto max-w-5xl">
+        <div class="fade-in mb-8 text-center">
+          <h2 class="mb-3 text-2xl font-bold sm:text-3xl">See it in action</h2>
+          <p class="text-text-dim">
+            Navigate repos, browse sessions, preview Claude output — all without
+            leaving the terminal.
+          </p>
+        </div>
+
+        <!-- Player container -->
+        <div class="fade-in overflow-hidden rounded-xl border border-border">
+          <!-- Terminal title bar -->
+          <div
+            class="flex items-center gap-2 border-b border-border bg-surface px-4 py-3"
+          >
+            <span class="h-3 w-3 rounded-full bg-red/80"></span>
+            <span class="h-3 w-3 rounded-full bg-amber/80"></span>
+            <span class="h-3 w-3 rounded-full bg-green/80"></span>
+            <span class="ml-3 text-xs text-text-dimmer">parkranger</span>
+          </div>
+          <div id="demo-player"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FEATURES ─── -->
+    <section id="features" class="px-6 py-20">
+      <div class="mx-auto max-w-6xl">
+        <div class="fade-in mb-16 text-center">
+          <h2 class="mb-3 text-2xl font-bold sm:text-3xl">
+            Everything you need, nothing you don't
+          </h2>
+          <p class="text-text-dim">
+            Not another agent. Not a git client. Just a workspace manager that
+            gives you visibility.
+          </p>
+        </div>
+
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <!-- Feature 1 -->
+          <div
+            class="fade-in group rounded-xl border border-border bg-surface p-6 transition hover:border-border-bright"
+          >
+            <div
+              class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 text-lg text-accent"
+            >
+              <span class="text-green font-bold">!</span>
+            </div>
+            <h3 class="mb-2 font-semibold">Agent Status Dashboard</h3>
+            <p class="text-sm leading-relaxed text-text-dim">
+              See at a glance which Claude agents are
+              <span class="text-red">waiting for input</span>,
+              <span class="text-accent-bright">busy working</span>, or
+              <span class="text-text-dimmer">idle</span>. Waiting sessions float
+              to the top.
+            </p>
+          </div>
+
+          <!-- Feature 2 -->
+          <div
+            class="fade-in group rounded-xl border border-border bg-surface p-6 transition hover:border-border-bright"
+          >
+            <div
+              class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-green/10 text-lg text-green"
+            >
+              +
+            </div>
+            <h3 class="mb-2 font-semibold">One-Action Worktrees</h3>
+            <p class="text-sm leading-relaxed text-text-dim">
+              Create a worktree + tmux session + editor + Claude pane with a
+              single keypress. Both panes cd'd into the right directory.
+            </p>
+          </div>
+
+          <!-- Feature 3 -->
+          <div
+            class="fade-in group rounded-xl border border-border bg-surface p-6 transition hover:border-border-bright"
+          >
+            <div
+              class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-pink/10 text-lg text-pink"
+            >
+              ~
+            </div>
+            <h3 class="mb-2 font-semibold">Multi-Repo by Default</h3>
+            <p class="text-sm leading-relaxed text-text-dim">
+              Manage sessions across all your repositories from one dashboard.
+              No switching contexts, no lost sessions.
+            </p>
+          </div>
+
+          <!-- Feature 4 -->
+          <div
+            class="fade-in group rounded-xl border border-border bg-surface p-6 transition hover:border-border-bright"
+          >
+            <div
+              class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-amber/10 text-lg text-amber"
+            >
+              &gt;
+            </div>
+            <h3 class="mb-2 font-semibold">Streaming Preview</h3>
+            <p class="text-sm leading-relaxed text-text-dim">
+              See Claude's response streaming live in the dashboard. Monitor
+              progress without switching tmux windows.
+            </p>
+          </div>
+
+          <!-- Feature 5 -->
+          <div
+            class="fade-in group rounded-xl border border-border bg-surface p-6 transition hover:border-border-bright"
+          >
+            <div
+              class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 text-lg text-accent-bright"
+            >
+              #
+            </div>
+            <h3 class="mb-2 font-semibold">Session Persistence</h3>
+            <p class="text-sm leading-relaxed text-text-dim">
+              Close parkranger, reopen it later. Your sessions, conversation
+              history, and agent state are all still there.
+            </p>
+          </div>
+
+          <!-- Feature 6 -->
+          <div
+            class="fade-in group rounded-xl border border-border bg-surface p-6 transition hover:border-border-bright"
+          >
+            <div
+              class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-green/10 text-lg text-green"
+            >
+              $
+            </div>
+            <h3 class="mb-2 font-semibold">Session History & Resume</h3>
+            <p class="text-sm leading-relaxed text-text-dim">
+              Browse past Claude conversations per worktree. Resume any session
+              with one keypress. Deep scan finds orphaned sessions too.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── HOW IT WORKS ─── -->
+    <section class="px-6 py-20">
+      <div class="mx-auto max-w-4xl">
+        <div class="fade-in mb-12 text-center">
+          <h2 class="mb-3 text-2xl font-bold sm:text-3xl">How it works</h2>
+          <p class="text-text-dim">
+            parkranger orchestrates tmux and git worktrees. It doesn't replace
+            either.
+          </p>
+        </div>
+
+        <div class="fade-in space-y-1 rounded-xl border border-border bg-surface p-6 font-mono text-sm">
+          <p class="text-text-dimmer"># Each repo gets a tmux session. Each worktree gets a window.</p>
+          <p class="mt-4 text-text-dim">
+            <span class="text-amber">tmux session:</span>
+            <span class="text-accent-bright">pr-myrepo</span>
+          </p>
+          <p class="text-text-dim">
+            <span class="text-border-bright">├──</span> window:
+            <span class="text-green">dashboard</span>
+            <span class="text-text-dimmer ml-4"># parkranger TUI</span>
+          </p>
+          <p class="text-text-dim">
+            <span class="text-border-bright">├──</span> window:
+            <span class="text-green">feat-auth</span>
+            <span class="text-text-dimmer ml-4"># worktree window</span>
+          </p>
+          <p class="text-text-dim">
+            <span class="text-border-bright">│</span>&nbsp;&nbsp;
+            <span class="text-border-bright">├──</span> pane 0:
+            <span class="text-pink">nvim</span>
+            <span class="text-text-dimmer ml-4"># editor</span>
+          </p>
+          <p class="text-text-dim">
+            <span class="text-border-bright">│</span>&nbsp;&nbsp;
+            <span class="text-border-bright">└──</span> pane 1:
+            <span class="text-pink">claude</span>
+            <span class="text-text-dimmer ml-4"># Claude Code</span>
+          </p>
+          <p class="text-text-dim">
+            <span class="text-border-bright">└──</span> window:
+            <span class="text-green">fix-login</span>
+          </p>
+          <p class="text-text-dim">
+            &nbsp;&nbsp;&nbsp;
+            <span class="text-border-bright">├──</span> pane 0:
+            <span class="text-pink">nvim</span>
+          </p>
+          <p class="text-text-dim">
+            &nbsp;&nbsp;&nbsp;
+            <span class="text-border-bright">└──</span> pane 1:
+            <span class="text-pink">claude</span>
+          </p>
+        </div>
+
+        <div class="fade-in mt-8 grid gap-6 sm:grid-cols-3">
+          <div class="rounded-xl border border-border bg-surface p-5">
+            <p class="mb-1 text-xs font-semibold tracking-wider text-green uppercase">
+              Detect
+            </p>
+            <p class="text-sm text-text-dim">
+              Polls <code class="text-accent-bright text-xs">tmux capture-pane</code> to classify agent state
+              from visible output. No subshells spawned.
+            </p>
+          </div>
+          <div class="rounded-xl border border-border bg-surface p-5">
+            <p class="mb-1 text-xs font-semibold tracking-wider text-amber uppercase">
+              Classify
+            </p>
+            <p class="text-sm text-text-dim">
+              Pattern matching on pane content: permission prompts, interrupt hints,
+              output hash diffs. Debounced 200ms.
+            </p>
+          </div>
+          <div class="rounded-xl border border-border bg-surface p-5">
+            <p class="mb-1 text-xs font-semibold tracking-wider text-pink uppercase">
+              Surface
+            </p>
+            <p class="text-sm text-text-dim">
+              Waiting sessions bubble up. Most actionable state wins when multiple
+              Claude panes exist in a session.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── DOCS ─── -->
+    <section id="docs" class="px-6 py-20">
+      <div class="mx-auto max-w-4xl">
+        <div class="fade-in mb-12 text-center">
+          <h2 class="mb-3 text-2xl font-bold sm:text-3xl">Documentation</h2>
+        </div>
+
+        <!-- Install -->
+        <div id="install" class="fade-in mb-12 scroll-mt-24">
+          <h3 class="mb-4 text-lg font-semibold">
+            <span class="text-green">$</span> Installation
+          </h3>
+          <div class="space-y-4">
+            <div class="rounded-xl border border-border bg-surface overflow-hidden">
+              <div class="flex items-center justify-between border-b border-border px-4 py-2">
+                <span class="text-xs text-text-dimmer">Go install</span>
+              </div>
+              <pre class="overflow-x-auto p-4 text-sm"><code class="text-text-dim">go install github.com/JollyGrin/parkranger/cmd/parkranger@latest</code></pre>
+            </div>
+            <div class="rounded-xl border border-border bg-surface overflow-hidden">
+              <div class="flex items-center justify-between border-b border-border px-4 py-2">
+                <span class="text-xs text-text-dimmer">Build from source</span>
+              </div>
+              <pre class="overflow-x-auto p-4 text-sm"><code class="text-text-dim"><span class="text-green">git</span> clone https://github.com/JollyGrin/parkranger
+<span class="text-green">cd</span> parkranger
+<span class="text-green">go</span> build -o parkranger ./cmd/parkranger
+<span class="text-green">./parkranger</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prerequisites -->
+        <div class="fade-in mb-12">
+          <h3 class="mb-4 text-lg font-semibold">
+            <span class="text-green">$</span> Prerequisites
+          </h3>
+          <div
+            class="grid gap-3 sm:grid-cols-2"
+          >
+            <div class="flex items-start gap-3 rounded-lg border border-border bg-surface p-4">
+              <span class="mt-0.5 text-green">*</span>
+              <div>
+                <p class="text-sm font-medium">tmux</p>
+                <p class="text-xs text-text-dimmer">Session management</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 rounded-lg border border-border bg-surface p-4">
+              <span class="mt-0.5 text-green">*</span>
+              <div>
+                <p class="text-sm font-medium">git 2.15+</p>
+                <p class="text-xs text-text-dimmer">Worktree support</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 rounded-lg border border-border bg-surface p-4">
+              <span class="mt-0.5 text-green">*</span>
+              <div>
+                <p class="text-sm font-medium">Go 1.24+</p>
+                <p class="text-xs text-text-dimmer">Build from source</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 rounded-lg border border-border bg-surface p-4">
+              <span class="mt-0.5 text-green">*</span>
+              <div>
+                <p class="text-sm font-medium">Claude Code CLI</p>
+                <p class="text-xs text-text-dimmer"><code class="text-accent-bright text-xs">claude</code> on PATH</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Config -->
+        <div class="fade-in mb-12">
+          <h3 class="mb-4 text-lg font-semibold">
+            <span class="text-green">$</span> Configuration
+          </h3>
+          <div class="rounded-xl border border-border bg-surface overflow-hidden">
+            <div class="flex items-center justify-between border-b border-border px-4 py-2">
+              <span class="text-xs text-text-dimmer">~/.config/parkranger/config.yaml</span>
+            </div>
+            <pre class="overflow-x-auto p-4 text-sm"><code class="text-text-dim"><span class="text-accent-bright">repos</span>:
+  - <span class="text-amber">path</span>: /path/to/your/repo
+    <span class="text-amber">default_branch</span>: main
+
+<span class="text-accent-bright">poll_interval</span>: 2s
+<span class="text-accent-bright">editor</span>: nvim
+<span class="text-accent-bright">session_prefix</span>: <span class="text-green">"pr-"</span></code></pre>
+          </div>
+        </div>
+
+        <!-- Keyboard shortcuts -->
+        <div class="fade-in mb-12">
+          <h3 class="mb-4 text-lg font-semibold">
+            <span class="text-green">$</span> Keyboard shortcuts
+          </h3>
+          <div class="overflow-hidden rounded-xl border border-border">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-surface">
+                  <th class="px-4 py-3 text-left font-medium text-text-dimmer">Key</th>
+                  <th class="px-4 py-3 text-left font-medium text-text-dimmer">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border bg-surface-alt/50">
+                <tr>
+                  <td class="px-4 py-2.5"><kbd class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright">j</kbd> / <kbd class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright">k</kbd></td>
+                  <td class="px-4 py-2.5 text-text-dim">Navigate tasks</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2.5"><kbd class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright">Enter</kbd></td>
+                  <td class="px-4 py-2.5 text-text-dim">Open / focus session</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2.5"><kbd class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright">n</kbd></td>
+                  <td class="px-4 py-2.5 text-text-dim">New worktree + session</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2.5"><kbd class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright">m</kbd></td>
+                  <td class="px-4 py-2.5 text-text-dim">Merge worktree branch</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2.5"><kbd class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright">d</kbd></td>
+                  <td class="px-4 py-2.5 text-text-dim">Delete worktree</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2.5"><kbd class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright">h</kbd></td>
+                  <td class="px-4 py-2.5 text-text-dim">Session history</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2.5"><kbd class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright">s</kbd></td>
+                  <td class="px-4 py-2.5 text-text-dim">Deep search sessions</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2.5"><kbd class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright">q</kbd></td>
+                  <td class="px-4 py-2.5 text-text-dim">Quit (sessions keep running)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CLI commands -->
+        <div class="fade-in">
+          <h3 class="mb-4 text-lg font-semibold">
+            <span class="text-green">$</span> CLI commands
+          </h3>
+          <div class="rounded-xl border border-border bg-surface overflow-hidden">
+            <pre class="overflow-x-auto p-4 text-sm"><code class="text-text-dim"><span class="text-green">parkranger</span>                     <span class="text-text-dimmer"># interactive dashboard (default)</span>
+<span class="text-green">parkranger</span> open &lt;name&gt;         <span class="text-text-dimmer"># skip picker, open directly</span>
+<span class="text-green">parkranger</span> new &lt;name&gt;          <span class="text-text-dimmer"># create worktree + open</span>
+<span class="text-green">parkranger</span> ls                  <span class="text-text-dimmer"># list worktrees (non-interactive)</span>
+<span class="text-green">parkranger</span> merge &lt;name&gt;        <span class="text-text-dimmer"># merge flow</span>
+<span class="text-green">parkranger</span> delete &lt;name&gt;       <span class="text-text-dimmer"># delete flow</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── COMPARISON ─── -->
+    <section class="px-6 py-20">
+      <div class="mx-auto max-w-4xl">
+        <div class="fade-in mb-12 text-center">
+          <h2 class="mb-3 text-2xl font-bold sm:text-3xl">
+            Replace five tools with one
+          </h2>
+          <p class="text-text-dim">
+            What used to take tmux + ccmanager + workmux + ccfind + manual
+            resume.
+          </p>
+        </div>
+
+        <div class="fade-in overflow-hidden rounded-xl border border-border">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border bg-surface">
+                <th class="px-4 py-3 text-left font-medium text-text-dimmer">
+                  Task
+                </th>
+                <th class="px-4 py-3 text-left font-medium text-red">
+                  Before
+                </th>
+                <th class="px-4 py-3 text-left font-medium text-green">
+                  parkranger
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border bg-surface-alt/50">
+              <tr>
+                <td class="px-4 py-3 text-text-dim">Create worktree</td>
+                <td class="px-4 py-3 text-text-dimmer">ccmanager menu</td>
+                <td class="px-4 py-3">
+                  <kbd
+                    class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright"
+                    >n</kbd
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td class="px-4 py-3 text-text-dim">Open tmux session</td>
+                <td class="px-4 py-3 text-text-dimmer">
+                  tmux new -s &lt;name&gt;
+                </td>
+                <td class="px-4 py-3 text-text-dimmer italic">automatic</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-3 text-text-dim">List tasks</td>
+                <td class="px-4 py-3 text-text-dimmer">workmux ls</td>
+                <td class="px-4 py-3 text-text-dimmer italic">
+                  dashboard IS the list
+                </td>
+              </tr>
+              <tr>
+                <td class="px-4 py-3 text-text-dim">Check agent status</td>
+                <td class="px-4 py-3 text-text-dimmer">ctrl-b w + squint</td>
+                <td class="px-4 py-3 text-text-dimmer italic">
+                  status icons, real-time
+                </td>
+              </tr>
+              <tr>
+                <td class="px-4 py-3 text-text-dim">Find old session</td>
+                <td class="px-4 py-3 text-text-dimmer">ccfind &lt;kw&gt;</td>
+                <td class="px-4 py-3">
+                  <kbd
+                    class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright"
+                    >h</kbd
+                  >
+                  or
+                  <kbd
+                    class="rounded bg-surface px-2 py-0.5 text-xs text-accent-bright"
+                    >s</kbd
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td class="px-4 py-3 text-text-dim">Survive restart</td>
+                <td class="px-4 py-3 text-text-dimmer">start over</td>
+                <td class="px-4 py-3 text-text-dimmer italic">automatic</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FOOTER ─── -->
+    <footer class="border-t border-border px-6 py-12">
+      <div
+        class="mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 sm:flex-row"
+      >
+        <div class="flex items-center gap-2 text-sm text-text-dimmer">
+          <span class="text-green">$</span>
+          <span class="text-accent-bright font-semibold">parkranger</span>
+          <span>&mdash; built and maintained by
+            <a href="https://github.com/JollyGrin" target="_blank" rel="noopener" class="text-text-dim transition hover:text-accent-bright">JollyGrin</a></span>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-text-dimmer">
+          <a
+            href="https://github.com/JollyGrin/parkranger"
+            target="_blank"
+            rel="noopener"
+            class="transition hover:text-text"
+            >GitHub</a
+          >
+          <span class="text-border-bright">/</span>
+          <a
+            href="https://github.com/JollyGrin/parkranger/issues"
+            target="_blank"
+            rel="noopener"
+            class="transition hover:text-text"
+            >Issues</a
+          >
+        </div>
+      </div>
+    </footer>
+
+    <!-- Asciinema Player JS (loaded after page) -->
+    <script src="https://unpkg.com/asciinema-player@3/dist/bundle/asciinema-player.min.js"></script>
+
+    <!-- Fade-in animation styles -->
+    <style>
+      .fade-in {
+        opacity: 0;
+        transform: translateY(20px);
+        transition:
+          opacity 0.6s ease-out,
+          transform 0.6s ease-out;
+      }
+      .fade-in.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    </style>
+  </body>
+</html>
