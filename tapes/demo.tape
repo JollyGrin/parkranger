@@ -57,17 +57,27 @@ tape_sleep 0.8
 tape_key k
 tape_sleep 1.5
 
-# Open the selected branch
+# Exit the picker
+tape_key C-c
+tape_sleep 1
+
+# ── 4. Open a workspace ─────────────────────────────────────
+# Select a worktree — Enter opens the tmux session
+tape_type "./parkranger open feat-persistent-dashboard" 0.06
 tape_key Enter
 tape_sleep 2
 
-# ── 4. Show tmux tree (Ctrl-b w) ────────────────────────────
+# ── 5. Show tmux tree (Ctrl-b w) ────────────────────────────
 tape_key C-b
 tape_sleep 0.3
 tape_key w
 tape_sleep 2
 
-# Navigate the session/window tree
+# Scroll through the session/window tree
+tape_key Down
+tape_sleep 0.5
+tape_key Down
+tape_sleep 0.5
 tape_key Down
 tape_sleep 0.5
 tape_key Down
@@ -78,20 +88,12 @@ tape_key Down
 tape_sleep 0.5
 tape_sleep 2
 
-# Close the tree
-tape_key q
-tape_sleep 0.5
-
-# ── 5. Ctrl-C a few times and exit ──────────────────────────
+# ── 6. Ctrl-C a few times to exit ───────────────────────────
 tape_key C-c
 tape_sleep 0.3
 tape_key C-c
 tape_sleep 0.3
 tape_key C-c
-tape_sleep 0.5
-
-tape_type "exit" 0.08
-tape_key Enter
 tape_sleep 0.5
 
 tape_finish
