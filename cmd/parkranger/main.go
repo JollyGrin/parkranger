@@ -111,14 +111,15 @@ type pickerItem struct {
 }
 
 type pickerModel struct {
-	title     string
-	items     []pickerItem
-	cursor    int
-	chosen    string
-	confirmed bool // true when user pressed enter (vs esc/q)
-	quitting  bool
-	width     int
-	height    int
+	title       string
+	items       []pickerItem
+	hiddenItems []pickerItem // sessions behind "load more"
+	cursor      int
+	chosen      string
+	confirmed   bool // true when user pressed enter (vs esc/q)
+	quitting    bool
+	width       int
+	height      int
 }
 
 func (m pickerModel) Init() tea.Cmd { return nil }
@@ -139,7 +140,24 @@ func (m pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		case "enter":
-			m.chosen = m.items[m.cursor].value
+			selected := m.items[m.cursor]
+			if selected.value == "more" {
+				// Expand: splice hidden items in place of "more"
+				idx := m.cursor
+				newItems := make([]pickerItem, 0, len(m.items)+len(m.hiddenItems)-1)
+				newItems = append(newItems, m.items[:idx]...)
+				newItems = append(newItems, m.hiddenItems...)
+				newItems = append(newItems, m.items[idx+1:]...)
+				m.items = newItems
+				m.hiddenItems = nil
+				return m, nil
+			}
+			m.chosen = selected.value
+			m.confirmed = true
+			m.quitting = true
+			return m, tea.Quit
+		case "n":
+			m.chosen = "" // new session
 			m.confirmed = true
 			m.quitting = true
 			return m, tea.Quit
@@ -220,6 +238,11 @@ func (m pickerModel) renderPreview(item pickerItem, width, maxLines int) string 
 			status = fmt.Sprintf("Claude is %s", item.live.Status)
 		}
 		return pickerHeaderStyle.Render("● LIVE") + "\n\n" + status
+	}
+
+	// Load more
+	if item.value == "more" {
+		return pickerHeaderStyle.Render("Load more") + "\n\n" + "Show older sessions"
 	}
 
 	// New session
@@ -339,6 +362,8 @@ func sessionPicker(repoName string, wt *worktree.Worktree) (string, error) {
 		})
 	}
 
+	const initialSessionLimit = 5
+	var sessionItems []pickerItem
 	for i, s := range sessions {
 		age := formatAge(s.ModTime)
 		prompt := s.FirstPrompt
@@ -346,10 +371,24 @@ func sessionPicker(repoName string, wt *worktree.Worktree) (string, error) {
 			prompt = s.ID[:8]
 		}
 		label := fmt.Sprintf("%s  %-40s  %s", s.ID[:8], prompt, age)
-		items = append(items, pickerItem{
+		sessionItems = append(sessionItems, pickerItem{
 			label:   label,
 			value:   s.ID,
 			session: &sessions[i],
+		})
+	}
+
+	var hiddenItems []pickerItem
+	if len(sessionItems) > initialSessionLimit {
+		hiddenItems = sessionItems[initialSessionLimit:]
+		sessionItems = sessionItems[:initialSessionLimit]
+	}
+	items = append(items, sessionItems...)
+
+	if len(hiddenItems) > 0 {
+		items = append(items, pickerItem{
+			label: fmt.Sprintf("[+] Show %d more sessions", len(hiddenItems)),
+			value: "more",
 		})
 	}
 
@@ -359,7 +398,7 @@ func sessionPicker(repoName string, wt *worktree.Worktree) (string, error) {
 	})
 
 	title := fmt.Sprintf("%s / %s", repoName, wt.Name)
-	model := pickerModel{title: title, items: items}
+	model := pickerModel{title: title, items: items, hiddenItems: hiddenItems}
 
 	p := tea.NewProgram(model)
 	result, err := p.Run()
