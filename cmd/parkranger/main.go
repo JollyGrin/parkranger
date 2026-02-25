@@ -1010,79 +1010,99 @@ func (m menuModel) renderPanePreview(item menuItem) string {
 }
 
 func interactive() error {
-	_, repoName, wts, err := resolveRepo()
-	if err != nil {
-		return err
-	}
-
-	var items []menuItem
-	sessName := tmux.SessionName(repoName)
-	for _, wt := range wts {
-		det := &session.Detector{}
-		winName := tmux.WindowName(wt.Name)
-		live := det.Detect(sessName, winName)
-		sessions, _ := session.ListSessions(wt.Path)
-
-		items = append(items, menuItem{
-			name:     wt.Name,
-			live:     live,
-			sessNum:  len(sessions),
-			ahead:    wt.Ahead,
-			behind:   wt.Behind,
-			dirty:    wt.Dirty,
-			isMain:   wt.IsMain,
-			choice:   menuChoice{action: "open", name: wt.Name},
-			detector: det,
-		})
-	}
-
-	model := menuModel{title: repoName, items: items, repoName: repoName}
-	p := tea.NewProgram(model, tea.WithAltScreen())
-	result, err := p.Run()
-	if err != nil {
-		return err
-	}
-
-	m := result.(menuModel)
-	if !m.confirmed {
-		return nil
-	}
-
-	switch m.selected.action {
-	case "open":
-		return cmdOpen(m.selected.name)
-
-	case "new":
-		var name string
-		err := huh.NewInput().
-			Title("Branch name").
-			Value(&name).
-			Run()
+	for {
+		_, repoName, wts, err := resolveRepo()
 		if err != nil {
 			return err
 		}
-		name = strings.TrimSpace(name)
-		if name == "" {
+
+		var items []menuItem
+		sessName := tmux.SessionName(repoName)
+		for _, wt := range wts {
+			det := &session.Detector{}
+			winName := tmux.WindowName(wt.Name)
+			live := det.Detect(sessName, winName)
+			sessions, _ := session.ListSessions(wt.Path)
+
+			items = append(items, menuItem{
+				name:     wt.Name,
+				live:     live,
+				sessNum:  len(sessions),
+				ahead:    wt.Ahead,
+				behind:   wt.Behind,
+				dirty:    wt.Dirty,
+				isMain:   wt.IsMain,
+				choice:   menuChoice{action: "open", name: wt.Name},
+				detector: det,
+			})
+		}
+
+		model := menuModel{title: repoName, items: items, repoName: repoName}
+		p := tea.NewProgram(model, tea.WithAltScreen())
+		result, err := p.Run()
+		if err != nil {
+			return err
+		}
+
+		m := result.(menuModel)
+		if !m.confirmed {
 			return nil
 		}
-		return cmdNew(name)
 
-	case "merge":
-		name, err := pickWorktree(wts, "Merge which worktree?")
-		if err != nil || name == "" {
-			return err
-		}
-		return cmdMerge(name)
+		switch m.selected.action {
+		case "open":
+			// open attaches to tmux — if outside tmux, syscall.Exec replaces
+			// the process so the loop won't continue (which is fine).
+			// If inside tmux, switch-client returns and we loop back.
+			if err := cmdOpen(m.selected.name); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			}
 
-	case "delete":
-		name, err := pickWorktree(wts, "Delete which worktree?")
-		if err != nil || name == "" {
-			return err
+		case "new":
+			var name string
+			err := huh.NewInput().
+				Title("Branch name").
+				Value(&name).
+				Run()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				continue
+			}
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			if err := cmdNew(name); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			}
+
+		case "merge":
+			name, err := pickWorktree(wts, "Merge which worktree?")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				continue
+			}
+			if name == "" {
+				continue
+			}
+			if err := cmdMerge(name); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			}
+
+		case "delete":
+			name, err := pickWorktree(wts, "Delete which worktree?")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				continue
+			}
+			if name == "" {
+				continue
+			}
+			if err := cmdDelete(name); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			}
 		}
-		return cmdDelete(name)
 	}
-
-	return nil
 }
 
 func pickWorktree(wts []worktree.Worktree, title string) (string, error) {
