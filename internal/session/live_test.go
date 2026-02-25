@@ -48,11 +48,95 @@ func TestClassifyPaneOutput_Busy(t *testing.T) {
 	}
 }
 
+func TestClassifyPaneOutput_BusySpinner(t *testing.T) {
+	// Claude Code shows ✢ (U+2722) spinner during active processing.
+	// The spinner appears ~8 lines from bottom with stats line.
+	var lines []string
+	for i := 0; i < 10; i++ {
+		lines = append(lines, "  Output from task")
+	}
+	lines = append(lines, "✢ Doing… (13m 17s · ↓ 20.1k tokens · thought for 288s)")
+	lines = append(lines, "")
+	lines = append(lines, "────────────────────────────────────────")
+	lines = append(lines, "  Opus 4.6  ctx:42%  ↑3 ↓20.1k")
+	lines = append(lines, "❯")
+
+	output := strings.Join(lines, "\n")
+	status, hasClaude := classifyPaneOutput(output)
+	if status != StatusBusy || !hasClaude {
+		t.Errorf("busy spinner: got status=%v hasClaude=%v, want busy/true", status, hasClaude)
+	}
+}
+
+func TestClassifyPaneOutput_BusyActivityStats(t *testing.T) {
+	// Activity stats without the ✢ spinner character, just the token stats.
+	var lines []string
+	for i := 0; i < 8; i++ {
+		lines = append(lines, "  Working on changes")
+	}
+	lines = append(lines, "↓ 5.2k tokens · thinking")
+	lines = append(lines, "────────────────────────────────────────")
+	lines = append(lines, "❯")
+
+	output := strings.Join(lines, "\n")
+	status, hasClaude := classifyPaneOutput(output)
+	if status != StatusBusy || !hasClaude {
+		t.Errorf("activity stats: got status=%v hasClaude=%v, want busy/true", status, hasClaude)
+	}
+}
+
+func TestClassifyPaneOutput_BusyActivityThought(t *testing.T) {
+	// "thought for Ns" variant of activity stats.
+	var lines []string
+	lines = append(lines, "  Some output")
+	lines = append(lines, "↓ 1.3k tokens · thought for 12s")
+	lines = append(lines, "❯")
+
+	output := strings.Join(lines, "\n")
+	status, hasClaude := classifyPaneOutput(output)
+	if status != StatusBusy || !hasClaude {
+		t.Errorf("thought stats: got status=%v hasClaude=%v, want busy/true", status, hasClaude)
+	}
+}
+
 func TestClassifyPaneOutput_Idle(t *testing.T) {
 	output := "Claude Code v1.0.0\n❯ type a message\n/help for commands"
 	status, hasClaude := classifyPaneOutput(output)
 	if status != StatusIdle || !hasClaude {
 		t.Errorf("got status=%v hasClaude=%v, want idle/true", status, hasClaude)
+	}
+}
+
+func TestClassifyPaneOutput_IdleWithModelBar(t *testing.T) {
+	// Claude header scrolled off but status bar shows model name + prompt.
+	var lines []string
+	for i := 0; i < 20; i++ {
+		lines = append(lines, "  Long output from task")
+	}
+	lines = append(lines, "────────────────────────────────────────")
+	lines = append(lines, "  Opus 4.6  ctx:78%  ↑1 ↓5.2k")
+	lines = append(lines, "❯")
+
+	output := strings.Join(lines, "\n")
+	status, hasClaude := classifyPaneOutput(output)
+	if status != StatusIdle || !hasClaude {
+		t.Errorf("idle with model bar: got status=%v hasClaude=%v, want idle/true", status, hasClaude)
+	}
+}
+
+func TestClassifyPaneOutput_IdleWithSonnet(t *testing.T) {
+	// Status bar shows "sonnet" instead of "opus".
+	var lines []string
+	for i := 0; i < 15; i++ {
+		lines = append(lines, "  Output")
+	}
+	lines = append(lines, "  Sonnet 4.5  ctx:25%")
+	lines = append(lines, "❯")
+
+	output := strings.Join(lines, "\n")
+	status, hasClaude := classifyPaneOutput(output)
+	if status != StatusIdle || !hasClaude {
+		t.Errorf("idle with sonnet bar: got status=%v hasClaude=%v, want idle/true", status, hasClaude)
 	}
 }
 
@@ -159,6 +243,28 @@ func TestClassifyPaneOutput_StaleEscCancelAboveIdle(t *testing.T) {
 	}
 }
 
+func TestClassifyPaneOutput_StaleSpinnerAboveIdle(t *testing.T) {
+	// ✢ spinner from earlier processing, but now Claude is idle.
+	// This shouldn't normally happen (spinner is transient) but verify
+	// that idle indicators at the bottom win over a stale spinner higher up.
+	var lines []string
+	lines = append(lines, "✢ Doing… (2m 15s · ↓ 3.1k tokens · thought for 45s)") // stale spinner
+	for i := 0; i < 20; i++ {
+		lines = append(lines, "  Task output")
+	}
+	lines = append(lines, "Claude Code v1.0.0")
+	lines = append(lines, "❯ type a message")
+	lines = append(lines, "/help for commands")
+
+	output := strings.Join(lines, "\n")
+	status, hasClaude := classifyPaneOutput(output)
+	// The ✢ is outside bottom 15 (we have 20 filler + 3 bottom = 23 lines after spinner),
+	// so idle should win.
+	if status != StatusIdle || !hasClaude {
+		t.Errorf("stale spinner above idle: got status=%v hasClaude=%v, want idle/true", status, hasClaude)
+	}
+}
+
 func TestClassifyPaneOutput_ActiveWaitingOverStalebusy(t *testing.T) {
 	// "esc to interrupt" visible from before, but now there's an active permission prompt.
 	// Waiting should win (higher priority + at bottom).
@@ -233,5 +339,26 @@ func TestBottomN(t *testing.T) {
 	got = bottomN(nil, 3)
 	if len(got) != 0 {
 		t.Errorf("bottomN(nil, 3) = %v, want empty", got)
+	}
+}
+
+func TestBusyActivityRe(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"↓ 20.1k tokens · thought for 288s", true},
+		{"↓ 5.2k tokens · thinking", true},
+		{"↓ 1.3k tokens · thought for 12s", true},
+		{"100 tokens · thinking", true},
+		{"3k tokens · thought", true},
+		{"no match here", false},
+		{"tokens without number", false},
+	}
+	for _, tt := range tests {
+		got := busyActivityRe.MatchString(tt.input)
+		if got != tt.want {
+			t.Errorf("busyActivityRe.MatchString(%q) = %v, want %v", tt.input, got, tt.want)
+		}
 	}
 }

@@ -683,34 +683,73 @@ type menuChoice struct {
 }
 
 type menuItem struct {
-	name    string
-	live    session.LiveInfo
-	sessNum int
-	ahead   int
-	behind  int
-	dirty   bool
-	isMain  bool
-	choice  menuChoice
+	name     string
+	live     session.LiveInfo
+	sessNum  int
+	ahead    int
+	behind   int
+	dirty    bool
+	isMain   bool
+	choice   menuChoice
+	detector *session.Detector // stateful detector for hash-based change tracking
+}
+
+// tickMsg triggers a poll cycle.
+type tickMsg struct{}
+
+// pollResultMsg carries fresh live detection results.
+type pollResultMsg struct {
+	results map[string]session.LiveInfo // worktree name → LiveInfo
 }
 
 type menuModel struct {
-	title     string
-	items     []menuItem
-	cursor    int
-	selected  menuChoice
-	confirmed bool
-	quitting  bool
-	width     int
-	height    int
+	title       string
+	items       []menuItem
+	cursor      int
+	selected    menuChoice
+	confirmed   bool
+	quitting    bool
+	width       int
+	height      int
+	repoName    string
+	showPreview bool
 }
 
-func (m menuModel) Init() tea.Cmd { return nil }
+const pollInterval = 500 * time.Millisecond
+
+func tickCmd() tea.Cmd {
+	return tea.Tick(pollInterval, func(time.Time) tea.Msg {
+		return tickMsg{}
+	})
+}
+
+func (m menuModel) pollCmd() tea.Msg {
+	results := make(map[string]session.LiveInfo)
+	sessName := tmux.SessionName(m.repoName)
+	for _, item := range m.items {
+		winName := tmux.WindowName(item.name)
+		live := item.detector.Detect(sessName, winName)
+		results[item.name] = live
+	}
+	return pollResultMsg{results: results}
+}
+
+func (m menuModel) Init() tea.Cmd { return tickCmd() }
 
 func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+	case tickMsg:
+		return m, m.pollCmd
+	case pollResultMsg:
+		for i := range m.items {
+			if live, ok := msg.results[m.items[i].name]; ok {
+				m.items[i].live = live
+			}
+		}
+		return m, tickCmd()
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up", "k":
@@ -741,6 +780,11 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.confirmed = true
 			m.quitting = true
 			return m, tea.Quit
+		case "r":
+			// Immediate refresh
+			return m, m.pollCmd
+		case "p":
+			m.showPreview = !m.showPreview
 		case "q", "esc", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
@@ -874,19 +918,95 @@ func (m menuModel) View() string {
 	hints := accent.Render("n") + menuDimStyle.Render(" new") + "   " +
 		accent.Render("m") + menuDimStyle.Render(" merge") + "   " +
 		accent.Render("d") + menuDimStyle.Render(" delete") + "   " +
+		accent.Render("r") + menuDimStyle.Render(" refresh") + "   " +
+		accent.Render("p") + menuDimStyle.Render(" preview") + "   " +
 		accent.Render("q") + menuDimStyle.Render(" quit")
 
 	content := title + "\n\n" + strings.Join(rows, "\n") + "\n\n" + hints
 	panel := menuPanelStyle.Render(content)
 
-	// Center in terminal
+	// Preview panel
+	var previewPanel string
+	if m.showPreview && m.cursor < len(m.items) {
+		item := m.items[m.cursor]
+		previewPanel = m.renderPanePreview(item)
+	}
+
+	// Compose layout
 	if m.width > 0 && m.height > 0 {
+		if previewPanel != "" {
+			full := panel + "\n" + previewPanel
+			return lipgloss.Place(m.width, m.height,
+				lipgloss.Center, lipgloss.Center,
+				full)
+		}
 		return lipgloss.Place(m.width, m.height,
 			lipgloss.Center, lipgloss.Center,
 			panel)
 	}
 
+	if previewPanel != "" {
+		return "\n" + panel + "\n" + previewPanel + "\n"
+	}
 	return "\n" + panel + "\n"
+}
+
+// renderPanePreview renders a bordered box with the captured Claude pane content.
+func (m menuModel) renderPanePreview(item menuItem) string {
+	paneContent := item.live.PaneContent
+	if paneContent == "" {
+		return ""
+	}
+
+	// Build title
+	previewTitle := item.name
+	if item.live.HasClaude {
+		previewTitle += " · " + item.live.Status.String()
+	}
+
+	// Calculate available space
+	previewWidth := m.width - 4
+	if previewWidth < 40 {
+		previewWidth = 40
+	}
+	if previewWidth > 120 {
+		previewWidth = 120
+	}
+
+	// Show last N lines that fit. Reserve lines for border (2) + title.
+	// Use roughly half the terminal for the preview.
+	maxLines := m.height/2 - 3
+	if maxLines < 5 {
+		maxLines = 5
+	}
+
+	paneLines := strings.Split(paneContent, "\n")
+	// Trim trailing blanks
+	for len(paneLines) > 0 && strings.TrimSpace(paneLines[len(paneLines)-1]) == "" {
+		paneLines = paneLines[:len(paneLines)-1]
+	}
+	if len(paneLines) > maxLines {
+		paneLines = paneLines[len(paneLines)-maxLines:]
+	}
+
+	// Truncate long lines
+	for i, line := range paneLines {
+		runes := []rune(line)
+		if len(runes) > previewWidth-4 {
+			paneLines[i] = string(runes[:previewWidth-7]) + "..."
+		}
+	}
+
+	body := strings.Join(paneLines, "\n")
+
+	style := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("8")).
+		PaddingLeft(1).PaddingRight(1).
+		Width(previewWidth)
+
+	header := menuDimStyle.Render(previewTitle)
+	return style.Render(header + "\n" + body)
 }
 
 func interactive() error {
@@ -896,25 +1016,27 @@ func interactive() error {
 	}
 
 	var items []menuItem
+	sessName := tmux.SessionName(repoName)
 	for _, wt := range wts {
-		sessName := tmux.SessionName(repoName)
+		det := &session.Detector{}
 		winName := tmux.WindowName(wt.Name)
-		live := session.DetectLive(sessName, winName)
+		live := det.Detect(sessName, winName)
 		sessions, _ := session.ListSessions(wt.Path)
 
 		items = append(items, menuItem{
-			name:    wt.Name,
-			live:    live,
-			sessNum: len(sessions),
-			ahead:   wt.Ahead,
-			behind:  wt.Behind,
-			dirty:   wt.Dirty,
-			isMain:  wt.IsMain,
-			choice:  menuChoice{action: "open", name: wt.Name},
+			name:     wt.Name,
+			live:     live,
+			sessNum:  len(sessions),
+			ahead:    wt.Ahead,
+			behind:   wt.Behind,
+			dirty:    wt.Dirty,
+			isMain:   wt.IsMain,
+			choice:   menuChoice{action: "open", name: wt.Name},
+			detector: det,
 		})
 	}
 
-	model := menuModel{title: repoName, items: items}
+	model := menuModel{title: repoName, items: items, repoName: repoName}
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	result, err := p.Run()
 	if err != nil {
